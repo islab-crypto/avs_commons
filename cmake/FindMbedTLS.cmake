@@ -103,10 +103,14 @@ if(MBEDTLS_USE_STATIC_LIBS)
     set(_MBEDTLS_LIB_NAME libmbedtls.a)
     set(_MBEDTLS_CRYPTO_LIB_NAME libmbedcrypto.a)
     set(_MBEDTLS_X509_LIB_NAME libmbedx509.a)
+    set(_MBEDTLS_ISLAB_LIB_NAME libislabcrypto.a)
+    set(_MBEDTLS_WIRINGPI_LIB_NAME libwiringPi.so)
 else()
     set(_MBEDTLS_LIB_NAME mbedtls)
     set(_MBEDTLS_CRYPTO_LIB_NAME mbedcrypto)
     set(_MBEDTLS_X509_LIB_NAME mbedx509)
+    set(_MBEDTLS_ISLAB_LIB_NAME islabcrypto)
+    set(_MBEDTLS_WIRINGPI_LIB_NAME wiringpi)
 endif()
 
 find_library(MBEDTLS_LIBRARY
@@ -127,7 +131,19 @@ find_library(MBEDTLS_X509_LIBRARY
              HINTS ${MBEDTLS_ROOT_DIR}
              ${_EXTRA_FIND_ARGS})
 
-set(MBEDTLS_LIBRARIES ${MBEDTLS_LIBRARY} ${MBEDTLS_CRYPTO_LIBRARY} ${MBEDTLS_X509_LIBRARY})
+find_library(MBEDTLS_ISLAB_LIBRARY
+             NAMES ${_MBEDTLS_ISLAB_LIB_NAME}
+             PATH_SUFFIXES lib
+             HINTS ${MBEDTLS_ROOT_DIR}
+             ${_EXTRA_FIND_ARGS})
+
+find_library(MBEDTLS_WIRINGPI_LIBRARY
+             NAMES ${_MBEDTLS_WIRINGPI_LIB_NAME}
+             PATH_SUFFIXES lib
+             HINTS ${MBEDTLS_ROOT_DIR}
+             ${_EXTRA_FIND_ARGS})
+
+set(MBEDTLS_LIBRARIES ${MBEDTLS_LIBRARY} ${MBEDTLS_CRYPTO_LIBRARY} ${MBEDTLS_X509_LIBRARY} ${MBEDTLS_ISLAB_LIBRARY} ${MBEDTLS_WIRINGPI_LIBRARY})
 
 if(MBEDTLS_INCLUDE_DIR)
     set(MBEDTLS_FOUND TRUE)
@@ -142,15 +158,26 @@ find_package_handle_standard_args(MbedTLS
                                       MBEDTLS_LIBRARY
                                       MBEDTLS_CRYPTO_LIBRARY
                                       MBEDTLS_X509_LIBRARY
+                                      MBEDTLS_ISLAB_LIBRARY
+                                      MBEDTLS_WIRINGPI_LIBRARY
                                       MBEDTLS_LIBRARIES
                                       MBEDTLS_VERSION
                                   VERSION_VAR MBEDTLS_VERSION)
 
+if(NOT TARGET mbedtls)
+    add_library(mbedtls UNKNOWN IMPORTED)
+    set_target_properties(mbedtls PROPERTIES
+                          INTERFACE_INCLUDE_DIRECTORIES "${MBEDTLS_INCLUDE_DIR}"
+                          INTERFACE_LINK_LIBRARIES wiringpi
+                          IMPORTED_LINK_INTERFACE_LANGUAGES "C"
+                          IMPORTED_LOCATION "${MBEDTLS_LIBRARY}")
+endif()
 
 if(NOT TARGET mbedcrypto)
     add_library(mbedcrypto UNKNOWN IMPORTED)
     set_target_properties(mbedcrypto PROPERTIES
                           INTERFACE_INCLUDE_DIRECTORIES "${MBEDTLS_INCLUDE_DIR}"
+                          INTERFACE_LINK_LIBRARIES mbedtls
                           IMPORTED_LINK_INTERFACE_LANGUAGES "C"
                           IMPORTED_LOCATION "${MBEDTLS_CRYPTO_LIBRARY}")
 endif()
@@ -164,11 +191,20 @@ if(NOT TARGET mbedx509)
                           IMPORTED_LOCATION "${MBEDTLS_X509_LIBRARY}")
 endif()
 
-if(NOT TARGET mbedtls)
-    add_library(mbedtls UNKNOWN IMPORTED)
-    set_target_properties(mbedtls PROPERTIES
+if(NOT TARGET islabcrypto)
+    add_library(islabcrypto UNKNOWN IMPORTED)
+    set_target_properties(islabcrypto PROPERTIES
                           INTERFACE_INCLUDE_DIRECTORIES "${MBEDTLS_INCLUDE_DIR}"
                           INTERFACE_LINK_LIBRARIES mbedx509
                           IMPORTED_LINK_INTERFACE_LANGUAGES "C"
-                          IMPORTED_LOCATION "${MBEDTLS_LIBRARY}")
+                          IMPORTED_LOCATION "${MBEDTLS_ISLAB_LIBRARY}")
+endif()
+
+if(NOT TARGET wiringpi)
+    add_library(wiringpi UNKNOWN IMPORTED)
+    set_target_properties(wiringpi PROPERTIES
+                          INTERFACE_INCLUDE_DIRECTORIES "${MBEDTLS_INCLUDE_DIR}"
+                          INTERFACE_LINK_LIBRARIES islabcrypto
+                          IMPORTED_LINK_INTERFACE_LANGUAGES "C"
+                          IMPORTED_LOCATION "${MBEDTLS_WIRINGPI_LIBRARY}")
 endif()
